@@ -1,0 +1,304 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "XFAL_API_CRUD",
+    "description": "XFAL portfolio API — CRUD for companies, departments, and employees.\n\nBase URL: http://localhost:5000\n\nAuthor: Fabian Suarez",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/health",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["health"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET all data",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/data",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["data"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "CREATE company",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"company_name\": \"Tech Innovations Inc.\",\n  \"address\": \"456 Innovation Drive\",\n  \"city\": \"Austin\",\n  \"state\": \"TX\",\n  \"zip_code\": \"78701\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:5000/companies",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["companies"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "READ company",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/companies/1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["companies", "1"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "UPDATE company",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"company_name\": \"Tech Innovations LLC\",\n  \"address\": \"456 Innovation Drive\",\n  \"city\": \"Austin\",\n  \"state\": \"TX\",\n  \"zip_code\": \"78701\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:5000/companies/1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["companies", "1"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "DELETE company",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/companies/1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["companies", "1"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "CREATE department",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"department_name\": \"Sales\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:5000/departments",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["departments"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "READ department",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/departments/1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["departments", "1"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "UPDATE department",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"department_name\": \"Enterprise Sales\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:5000/departments/1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["departments", "1"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "DELETE department",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/departments/1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["departments", "1"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "CREATE employee",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"first_name\": \"Jane\",\n  \"last_name\": \"Doe\",\n  \"phone1\": \"512-555-0100\",\n  \"phone2\": \"512-555-0199\",\n  \"email\": \"jane.doe@example.com\",\n  \"company_id\": 1,\n  \"department_id\": 1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:5000/employees",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["employees"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "READ employee",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/employees/1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["employees", "1"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "UPDATE employee",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"first_name\": \"Jane\",\n  \"last_name\": \"Doe\",\n  \"phone1\": \"512-555-0101\",\n  \"phone2\": \"512-555-0199\",\n  \"email\": \"jane.doe@example.com\",\n  \"company_id\": 1,\n  \"department_id\": 1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:5000/employees/1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["employees", "1"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "DELETE employee",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/employees/1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["employees", "1"]
+        }
+      },
+      "response": []
+    }
+  ]
+}

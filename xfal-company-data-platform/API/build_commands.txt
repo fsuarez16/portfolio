@@ -1,0 +1,12 @@
+# Build and run the XFAL API image alone (DB must already be reachable)
+
+1. cd API
+2. docker build -t xfal-api .
+3. docker run -d -p 5000:5000 ^
+     -e POSTGRES_HOST=host.docker.internal ^
+     -e POSTGRES_DB=xfal ^
+     -e POSTGRES_USER=postgres ^
+     -e POSTGRES_PASSWORD=example ^
+     xfal-api
+
+# Prefer the full stack from Dockerfiles/docker-compose.yml
