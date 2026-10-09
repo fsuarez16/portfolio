@@ -1,0 +1,401 @@
+---
+title: "What Makes a Retail Experience Worth Recommending?"
+subtitle: "Customer-experience decision analysis across four retail brand aliases"
+author: "Customer Insights Project"
+date: "June 2026"
+output:
+  html_document:
+    self_contained: true
+    toc: true
+    toc_float: true
+    number_sections: false
+    code_folding: hide
+    theme: flatly
+    css: styles.css
+    fig_width: 9
+    fig_height: 5
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                      fig.align = "center", out.width = "100%",
+                      fig.width = 10, fig.height = 5.8, dpi = 144,
+                      fig.retina = 2)
+options(scipen = 999)
+brand_colors <- c("#17B890", "#F6AE2D", "#6C63FF", "#EF476F")
+```
+
+<div class="brief-grid">
+<div><span>Business brief</span><strong>Select one customer-experience intervention for a 90-day pilot</strong></div>
+<div><span>My role</span><strong>Independent analyst responsible for research design</strong></div>
+<div><span>Decision audience</span><strong>VP, Customer Experience & Operations</strong></div>
+<div><span>Constraints</span><strong>Three-week analysis period; one pilot; measurable success required</strong></div>
+</div>
+
+## Executive snapshot
+
+```{r load-data, include=FALSE}
+d_raw <- read.csv("data/retail_experience_survey.csv", stringsAsFactors = TRUE)
+d_raw$survey_date <- as.Date(as.character(d_raw$survey_date))
+d <- subset(d_raw, quality_status == "Keep" & purchase_recency_days <= 30)
+wmean <- function(x, w) weighted.mean(x, w, na.rm=TRUE)
+wnps <- function(x, w) 100*(weighted.mean(x>=9,w,na.rm=TRUE)-weighted.mean(x<=6,w,na.rm=TRUE))
+brand_summary <- do.call(rbind, lapply(split(seq_len(nrow(d)), d$brand), function(i) {
+  data.frame(brand=as.character(d$brand[i[1]]),
+    satisfaction=wmean(d$overall_satisfaction[i],d$survey_weight[i]),
+    nps=wnps(d$recommendation_score[i],d$survey_weight[i]))
+}))
+weak_brand <- as.character(brand_summary$brand[which.min(brand_summary$satisfaction)])
+strong_brand <- as.character(brand_summary$brand[which.max(brand_summary$satisfaction)])
+brand_spread <- diff(range(brand_summary$satisfaction))
+pilot_eligible <- d$brand==weak_brand & d$channel!="In-store" & d$stockout_experienced
+pilot_share <- 100*weighted.mean(pilot_eligible,d$survey_weight)
+weak_stockout <- weighted.mean(d$stockout_experienced[d$brand==weak_brand],d$survey_weight[d$brand==weak_brand])
+driver_vars <- c("staff_helpfulness", "checkout_speed",
+                 "product_availability", "value_for_money",
+                 "fulfillment_reliability", "shopping_enjoyment")
+model_d <- d
+for (v in driver_vars) model_d[[v]][is.na(model_d[[v]])] <- median(model_d[[v]], na.rm=TRUE)
+```
+
+<div class="kpi-grid">
+<div class="kpi"><span>Responses</span><strong>`r format(nrow(d), big.mark=',')`</strong></div>
+<div class="kpi"><span>Brand spread</span><strong>`r round(brand_spread, 2)` pts</strong></div>
+<div class="kpi"><span>Priority brand</span><strong>`r weak_brand`</strong></div>
+<div class="kpi"><span>Priority signal</span><strong>`r round(100*weak_stockout)`% stockouts</strong></div>
+</div>
+
+**Recommendation:** test real-time stock alerts and price-protected substitutions with `r weak_brand` digital customers who recently experienced an unavailable item. A portfolio-wide program would dilute resources across several different issues. The app is not the primary concern, but it offers the most efficient way to reach affected customers quickly.
+
+- `r weak_brand`'s satisfaction score is `r round(brand_spread,2)` points below `r strong_brand`, exceeding the 0.20-point threshold established for this case.
+- Availability is `r weak_brand`'s weakest operational measure, with `r round(100*weak_stockout)`% of respondents reporting a stockout.
+- Digital ease is comparatively strong, enabling a targeted improvement in availability without redesigning the entire customer journey.
+
+## Context 
+
+With a $75,000 budget and capacity for one 90-day pilot, leadership could not address every possible improvement at once. The analysis therefore focused on identifying the largest performance gap, the factors that might contribute to it, and an intervention that would not require a complete operational redesign.
+
+## Study design
+
+Responses were collected over eight weeks using three recruitment methods: email, receipt QR codes, and app intercepts. To reduce recall error, the analysis included only customers who purchased within the previous 30 days. Rapid completions and straight-line response patterns were excluded.
+
+Most experience items use a 1–10 scale, while likelihood to recommend is measured on a 0–10 scale. Issue-resolution and app-ease questions were shown only when applicable. Because invitation-level records are unavailable, a reliable response rate cannot be calculated.
+
+```{r fieldwork-flow, echo=FALSE}
+flow <- as.data.frame(table(d_raw$quality_status), stringsAsFactors=FALSE)
+names(flow) <- c("Disposition", "Records")
+flow <- rbind(data.frame(Disposition="Total completed (before QC)", Records=nrow(d_raw)),
+              flow, data.frame(Disposition="Final quality-approved base",Records=nrow(d)))
+knitr::kable(flow, align=c("l","r"), caption="Fieldwork and quality-control flow")
+```
+
+```{r qa-table, echo=FALSE}
+eligible_issue_violations <- sum(!d_raw$had_issue & !is.na(d_raw$issue_resolution))
+eligible_app_violations <- sum(!d_raw$used_app & !is.na(d_raw$store_app_ease))
+qa <- data.frame(
+  Check=c("Duplicate respondent IDs", "Ratings outside allowed ranges",
+          "Issue skip-logic violations", "App skip-logic violations"),
+  Result=c(anyDuplicated(d_raw$respondent_id),
+           sum(d_raw$overall_satisfaction<1|d_raw$overall_satisfaction>10|d_raw$recommendation_score<0|d_raw$recommendation_score>10),
+           eligible_issue_violations, eligible_app_violations))
+knitr::kable(qa,align=c("l","l"),caption="Data-quality checks")
+```
+
+```{r sample-structure}
+structure_table <- data.frame(
+  Measure = c("Sample", "Brands", "Channels", "Experience attributes", "Outcome measures"),
+  Definition = c(paste(format(nrow(d_raw), big.mark=","), "completes;", format(nrow(d), big.mark=","), "quality-approved"), "4 brand aliases",
+                 "In-store, click & collect, delivery", "8 ratings on a 1-10 scale",
+                 "Overall satisfaction and likelihood to recommend")
+)
+knitr::kable(structure_table, align = c("l", "l"))
+```
+
+## Brand performance
+
+```{r brand-ci, include=FALSE}
+brand_ci <- do.call(rbind, lapply(split(seq_len(nrow(d)), d$brand), function(i) {
+  x<-d$overall_satisfaction[i]; w<-d$survey_weight[i]; m<-wmean(x,w)
+  neff<-(sum(w)^2)/sum(w^2); se<-sqrt(sum(w*(x-m)^2)/sum(w))/sqrt(neff)
+  c(mean=m, lower=m-1.96*se, upper=m+1.96*se, n=length(i))
+}))
+brand_ci <- data.frame(brand = rownames(brand_ci), brand_ci, row.names = NULL)
+```
+
+```{r brand-performance, echo=FALSE}
+op <- par(mar = c(5, 10, 3, 1), las = 1, family = "sans")
+ord <- order(brand_summary$satisfaction)
+barplot(brand_summary$satisfaction[ord], names.arg = brand_summary$brand[ord],
+        horiz = TRUE, xlim = c(0, 10), col = brand_colors[ord], border = NA,
+        xlab = "Weighted mean satisfaction (1-10)", main = "Customer satisfaction differs materially by brand")
+abline(v = wmean(d$overall_satisfaction,d$survey_weight), col = "#5D6470", lty = 2)
+par(op)
+```
+
+```{r brand-test, include=FALSE}
+brand_fit <- lm(overall_satisfaction ~ brand, data=d, weights=survey_weight)
+brand_p <- anova(brand_fit)$`Pr(>F)`[1]
+unweighted_brand <- aggregate(overall_satisfaction~brand,d,mean)
+unweighted_spread <- diff(range(unweighted_brand$overall_satisfaction))
+```
+
+The weighted satisfaction gap is `r round(brand_spread,2)` points, considerably exceeding the 0.20-point threshold for this case. The omnibus test indicates differences across brands (*p* = `r format.pval(brand_p,digits=2)`), and the unweighted spread is similar at `r round(unweighted_spread,2)` points. This identified the area of focus, but not the specific issue. Rather than assume the entire brand was underperforming, I next examined channels and operational measures.
+
+```{r brand-ci-table, echo=FALSE}
+brand_ci_out <- brand_ci[order(-brand_ci$mean), ]
+brand_ci_out[, 2:4] <- round(brand_ci_out[, 2:4], 2)
+names(brand_ci_out) <- c("Brand", "Mean", "95% CI lower", "95% CI upper", "n")
+knitr::kable(brand_ci_out, align = c("l", rep("r", 4)))
+```
+
+```{r nps-table, echo=FALSE}
+display_summary <- brand_summary[order(-brand_summary$satisfaction), ]
+display_summary$satisfaction <- round(display_summary$satisfaction, 2)
+display_summary$nps <- round(display_summary$nps)
+names(display_summary) <- c("Brand", "Mean satisfaction", "NPS")
+knitr::kable(display_summary, align = c("l", "r", "r"))
+```
+
+For reference, NPS here equals the weighted percentage of recommendation scores from 9–10 minus the weighted percentage from 0–6.
+
+## Channel experience
+
+```{r channel-performance, echo=FALSE}
+channel_means <- do.call(rbind,lapply(split(seq_len(nrow(d)),d$channel),function(i)
+  data.frame(channel=as.character(d$channel[i[1]]),overall_satisfaction=wmean(d$overall_satisfaction[i],d$survey_weight[i]),
+             recommendation_score=wmean(d$recommendation_score[i],d$survey_weight[i]))))
+mat <- t(as.matrix(channel_means[, -1]))
+colnames(mat) <- channel_means$channel
+op <- par(mar=c(6,5,4,2), family="sans", xpd=NA)
+barplot(mat, beside = TRUE, ylim = c(0, 10), col = c("#17B890", "#6C63FF"),
+        border = NA, ylab = "Mean rating", main = "Experience outcomes by shopping channel")
+legend("topright", legend = c("Satisfaction", "Recommendation"),
+       fill = c("#17B890", "#6C63FF"), bty = "n")
+par(op)
+```
+
+Initially, overall channel averages appeared to be a logical basis for the pilot. The brand-by-channel analysis changed that view: similar averages masked distinct issues within each brand. `r weak_brand`, for example, combines strong digital access with frequent stockouts.
+
+```{r brand-channel-profile, echo=FALSE}
+brand_channel <- aggregate(cbind(overall_satisfaction,product_availability,fulfillment_reliability,store_app_ease)~brand+channel,d,mean,na.rm=TRUE)
+brand_channel_n <- aggregate(respondent_id~brand+channel,d,length)
+names(brand_channel_n)[3] <- "n"
+brand_channel <- merge(brand_channel,brand_channel_n,by=c("brand","channel"))
+brand_channel[,3:6] <- round(brand_channel[,3:6],2)
+names(brand_channel) <- c("Brand","Channel","Satisfaction","Availability","Reliability","App ease","n")
+knitr::kable(brand_channel,align=c("l","l",rep("r",5)),caption="Brand-by-channel experience profile")
+```
+
+Some cells have fewer than 100 respondents and should be interpreted as directional rather than precise. That uncertainty supports testing the priority journey instead of treating the survey results as definitive.
+
+## What drives satisfaction?
+
+```{r regression}
+model_formula <- as.formula(paste("overall_satisfaction ~", paste(driver_vars, collapse = " + "), "+ brand + channel"))
+fit <- lm(model_formula, data = model_d, weights = survey_weight)
+coefs <- coef(summary(fit))[-1, , drop = FALSE]
+coefs <- coefs[rownames(coefs) %in% driver_vars,,drop=FALSE]
+driver_results <- data.frame(
+  attribute = rownames(coefs),
+  coefficient = coefs[, "Estimate"],
+  p_value = coefs[, "Pr(>|t|)"]
+)
+driver_results <- driver_results[order(driver_results$coefficient), ]
+
+# Standardized coefficients for comparable effect sizes
+z <- as.data.frame(scale(model_d[, c("overall_satisfaction", driver_vars)]))
+z$survey_weight <- model_d$survey_weight
+z$brand <- model_d$brand
+z$channel <- model_d$channel
+fit_std <- lm(model_formula, data = z, weights = survey_weight)
+std_coefs <- coef(summary(fit_std))[-1, , drop = FALSE]
+driver_results$standardized <- std_coefs[driver_results$attribute, "Estimate"]
+
+# Deterministic 80/20 holdout validation
+set.seed(20261008)
+train_id <- sample(seq_len(nrow(model_d)), floor(0.8 * nrow(model_d)))
+fit_train <- lm(model_formula, data = model_d[train_id, ], weights = survey_weight)
+pred <- predict(fit_train, newdata = model_d[-train_id, ])
+test_rmse <- sqrt(mean((model_d$overall_satisfaction[-train_id] - pred)^2))
+test_r2 <- 1 - sum((model_d$overall_satisfaction[-train_id] - pred)^2) /
+  sum((model_d$overall_satisfaction[-train_id] - mean(model_d$overall_satisfaction[-train_id]))^2)
+
+# VIF calculated from auxiliary regressions
+vif_values <- sapply(driver_vars, function(v) {
+  others <- setdiff(driver_vars, v)
+  1 / (1 - summary(lm(as.formula(paste(v, "~", paste(others, collapse = "+"))), data = model_d))$r.squared)
+})
+```
+
+```{r driver-chart, echo=FALSE}
+pretty_names <- gsub("_", " ", driver_results$attribute)
+op <- par(mar=c(5,14,4,2), family="sans", xpd=NA)
+barplot(driver_results$standardized, names.arg = pretty_names, horiz = TRUE,
+        las = 1, col = ifelse(driver_results$p_value < .05, "#17B890", "#BAC2CC"),
+        border = NA, xlab = "Standardized coefficient", main = "Actionable experience associations with satisfaction",
+        cex.names = 0.9)
+par(op)
+```
+
+The weighted regression controls for brand and channel. Standardizing the experience measures allows the coefficients to be compared, which helps with ranking but does not establish causality.
+
+Holdout performance was moderate, with an RMSE of `r round(test_rmse, 2)` and R² of `r round(test_r2, 2)`. I also assessed overlap among the predictors. The largest VIF was `r round(max(vif_values), 2)`, indicating little multicollinearity. Because these are cross-sectional survey responses, the coefficients inform prioritization but do not establish causation.
+
+Only eligible respondents answered the issue-resolution and app-ease questions, so I excluded both measures from the primary model. Imputing average scores for structural skips would obscure the meaning of "not asked." Follow-up models using eligible subsamples would be more appropriate.
+
+```{r model-summary, echo=FALSE}
+model_stats <- data.frame(
+  Metric = c("Adjusted R-squared", "Holdout R-squared", "Holdout RMSE", "Largest VIF", "Observations"),
+  Value = c(round(summary(fit)$adj.r.squared, 3), round(test_r2, 3), round(test_rmse, 3),
+            round(max(vif_values), 2), nobs(fit))
+)
+knitr::kable(model_stats, align = c("l", "r"))
+```
+
+## Method choice and tradeoffs
+
+Regression came first because the immediate need was to rank experience measures after accounting for brand and channel. Holdout performance and multicollinearity checks kept that ranking in perspective; in-sample fit alone would not have been enough.
+
+I then tested whether the survey could be compressed into more general dimensions and whether the average customer was hiding distinct groups. Principal components helped with the first question; K-means explored the second. Neither produced evidence strong enough to redirect the recommendation, and neither proves that availability caused the brand gap. That narrower proposition belongs in the pilot.
+
+## Technical lens: experience dimensions
+
+```{r pca-analysis}
+pca <- prcomp(model_d[, driver_vars], center = TRUE, scale. = TRUE)
+variance <- pca$sdev^2 / sum(pca$sdev^2)
+loading_table <- round(pca$rotation[, 1:3], 2)
+```
+
+```{r scree-chart, echo=FALSE}
+op <- par(mar=c(5,5,4,2), family="sans", xpd=NA)
+barplot(100 * variance, col = "#6C63FF", border = NA,
+        names.arg = paste0("PC", seq_along(variance)),
+        ylab = "Variance explained (%)", main = "Principal-component variance")
+par(op)
+```
+
+```{r loadings, echo=FALSE}
+knitr::kable(loading_table, caption = "Standardized loadings for the first three components")
+```
+
+Several survey items are correlated, as the loadings indicate. That overlap may be useful if the questionnaire is shortened later, but it did not affect the pilot decision.
+
+## Customer segments
+
+```{r clustering}
+set.seed(20261008)
+x <- scale(model_d[, driver_vars])
+
+# Compare k = 2..6 with a sampled average silhouette calculation.
+silhouette_mean <- function(x, clusters, sample_n = 350) {
+  ids <- seq_len(nrow(x))
+  if (length(ids) > sample_n) ids <- sample(ids, sample_n)
+  dm <- as.matrix(dist(x))
+  s <- sapply(ids, function(i) {
+    same <- which(clusters == clusters[i] & seq_along(clusters) != i)
+    a <- if (length(same)) mean(dm[i, same]) else 0
+    other_groups <- setdiff(unique(clusters), clusters[i])
+    b <- min(sapply(other_groups, function(g) mean(dm[i, clusters == g])))
+    if (max(a, b) == 0) 0 else (b - a) / max(a, b)
+  })
+  mean(s)
+}
+candidate_k <- 2:6
+silhouette_scores <- sapply(candidate_k, function(k) {
+  set.seed(20261008 + k)
+  candidate <- kmeans(x, centers = k, nstart = 30)
+  silhouette_mean(x, candidate$cluster)
+})
+selected_k <- candidate_k[which.max(silhouette_scores)]
+set.seed(20261008)
+km <- kmeans(x, centers = selected_k, nstart = 50)
+d$segment_id <- km$cluster
+profile <- aggregate(model_d[, c(driver_vars, "overall_satisfaction", "recommendation_score")],
+                     list(segment_id = d$segment_id), mean, na.rm=TRUE)
+segment_order <- order(profile$overall_satisfaction)
+base_names <- c("At risk", "Value constrained", "Pragmatic", "Positive", "Experience advocates", "Champions")
+segment_names <- base_names[seq_len(selected_k)]
+profile$segment <- NA_character_
+profile$segment[segment_order] <- segment_names
+d$segment <- profile$segment[match(d$segment_id, profile$segment_id)]
+segment_sizes <- as.data.frame(prop.table(table(d$segment)))
+names(segment_sizes) <- c("segment", "share")
+segment_sizes <- segment_sizes[order(segment_sizes$share), ]
+```
+
+```{r segment-chart, echo=FALSE}
+op <- par(mar=c(5,14,4,2), family="sans", xpd=NA)
+barplot(100 * segment_sizes$share, names.arg = segment_sizes$segment, horiz = TRUE,
+        las = 1, col = rep(brand_colors,length.out=selected_k), border = NA,
+        xlab = "Share of respondents (%)", main = paste(selected_k,"exploratory experience groups"))
+par(op)
+```
+
+```{r segment-table, echo=FALSE}
+profile_out <- profile[, c("segment", "overall_satisfaction", "recommendation_score",
+                           "value_for_money", "staff_helpfulness", "fulfillment_reliability")]
+profile_out[, -1] <- round(profile_out[, -1], 2)
+names(profile_out) <- c("Segment", "Satisfaction", "Recommendation", "Value", "Staff", "Reliability")
+profile_out <- profile_out[order(profile_out$Satisfaction), ]
+knitr::kable(profile_out, align = c("l", rep("r", 5)))
+```
+
+Of the candidate solutions, *k* = `r selected_k` achieved the highest sampled silhouette score (`r round(max(silhouette_scores), 2)`), but this remains below 0.25. The weak separation means the groups are not suitable for defining a target audience. Pilot eligibility is therefore based on an observed unavailable-item event during a `r weak_brand` digital journey, not on cluster membership.
+
+```{r silhouette-table, echo=FALSE}
+knitr::kable(data.frame(Clusters = candidate_k, `Average silhouette` = round(silhouette_scores, 3)),
+             align = c("r", "r"))
+```
+
+## Expected business value and measurement plan
+
+The analysis supports a pilot rather than a full rollout. For planning, the minimum worthwhile improvement is 0.20 satisfaction points. Establishing this threshold before launch helps prevent a minor positive change from being overvalued.
+
+```{r power-plan, echo=FALSE}
+pilot_sd <- sd(d$overall_satisfaction)
+pilot_n_arm <- ceiling(2*(qnorm(.975)+qnorm(.80))^2*pilot_sd^2/(.20^2))
+recruit_n_arm <- ceiling(pilot_n_arm/.85)
+mde <- (qnorm(.975)+qnorm(.80))*pilot_sd*sqrt(2/pilot_n_arm)
+cost_per_recruit <- 60000/(2*recruit_n_arm)
+power_plan <- data.frame(
+  Item=c("Eligible audience","Required analyzed sample","Recruitment target","Budget assumption","Detectable lift","Decision date","Guardrail"),
+  Plan=c(paste0(weak_brand," digital customers with a recent unavailable item (",round(pilot_share,1),"% of approved survey base)"),
+         paste0(pilot_n_arm," treatment + ",pilot_n_arm," holdout"),
+         paste0(recruit_n_arm," per arm, allowing 15% attrition"),
+         paste0("$60k delivery budget (~$",round(cost_per_recruit)," per recruited customer) + $15k measurement"),
+         paste0(round(mde,2)," satisfaction points at 80% power"),
+         "End of the 90-day pilot","Repeat visits must not decline"))
+knitr::kable(power_plan,align=c("l","l"))
+```
+
+The calculation uses the portfolio-wide satisfaction variance, producing a slightly larger recruitment target than the eligible-audience estimate would. I kept that additional buffer in the plan.
+
+| Priority | Target | Action | Evidence | Owner | Success measure | Test design |
+|---|---|---|---|---|---|---|
+| 1 | Urban Basket digital customers with an unavailable-item event | Real-time availability alerts plus a comparable substitution at the original item's price, or a small account credit when no acceptable match exists | 34% stockout incidence and the lowest availability score | Digital + Merchandising | Satisfaction, availability rating | Customer-level randomized holdout, 90 days |
+| 2 | Urban Basket operations | Diagnose replenishment and assortment gaps by fulfillment zone | Availability weakness appears in every channel | Store Operations | Stockout rate | Operational dashboard |
+| 3 | Cedar & Co. | Protect service while testing value communication | Strong service but weakest value perception | Brand Marketing | Value rating, margin guardrail | Message A/B test |
+
+**Test setup:** eligibility is determined from order-event logs rather than retrospective survey scores. Within click-and-collect and delivery, affected `r weak_brand` customers are randomized to treatment or holdout. Overall satisfaction is the powered primary endpoint. Availability perception and substitution acceptance provide explanatory context, while repeat visits, margin, and rejection rates guard against a superficially positive result that harms another part of the business.
+
+Allow for 15% attrition and analyze customers according to their original assignment. Assigning alerts and price protection at the customer-ID level should minimize contamination.
+
+The survey base serves only as a planning sample. Recruitment would draw from the retailer's broader pool of eligible customers.
+
+**Scale rule:** expand only if satisfaction improves by at least 0.20 points, the 95% confidence interval excludes zero, and repeat visits do not decline. Cost and margin data are required before making an ROI claim.
+
+## Recommendations
+
+1. **Begin with `r weak_brand`.** Its shortfall is more specific than universal, while the other brands display different strengths and weaknesses. A portfolio-wide program would overlook those differences.
+2. **Deliver the intervention through the digital journey.** The app is not the weakest aspect of the experience. Alerts and price-protected substitutions can use this relatively strong touchpoint to address availability.
+3. **Finalize the decision criteria before launch.** The intervention must achieve a 0.20-point satisfaction increase without reducing repeat visits. Smaller improvements are noteworthy but insufficient for expansion.
+4. **Expansion comes later.** Before proceeding, the next stage needs a documented sampling frame, a validated questionnaire, calibrated weights, and experimental measurement.
+
+## Reproducibility and limitations
+
+**Portfolio disclosure:** This is a simulated case study; no real customers or companies are represented. The weights are illustrative age-and-region adjustments rather than calibrated population weights. Results from the regression and clustering should therefore be viewed as demonstrations of the workflow. Production research would need a documented sampling frame, calibrated weighting, and experimental testing.
+
+```{r session-info}
+sessionInfo()
+```
+
